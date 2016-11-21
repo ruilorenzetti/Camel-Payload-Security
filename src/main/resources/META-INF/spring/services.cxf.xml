@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:cxf="http://camel.apache.org/schema/cxf"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd">
+	<import resource="classpath:META-INF/cxf/cxf.xml" />
+
+	<cxf:cxfEndpoint id="SigInfoService"
+		address="http://localhost:8080/demo/services/sig" serviceClass="de.bit.camel.security.services.SigInfoService" />
+	<cxf:cxfEndpoint id="MissionInfoService"
+		address="http://localhost:8080/demo/services/mission" serviceClass="de.bit.camel.security.services.MissionInfoService" />
+</beans>

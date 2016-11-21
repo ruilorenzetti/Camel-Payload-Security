@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:camel="http://camel.apache.org/schema/spring"
+	xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+	<import resource="classpath:META-INF/spring/services.cxf.xml" />
+	<import resource="classpath:META-INF/spring/beans.xml" />
+
+	<!-- XMLSecurity keystore, key password must be identical with keystore 
+		password -->
+	<camel:keyStoreParameters id="sacStore"
+		resource="./sacStore.jks" password="sacStore" />
+
+	<camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+		<dataFormats>
+			<jaxb id="simpleXML" contextPath="de.bit.camel.security" />
+
+			<crypto id="aes" algorithm="AES" keyRef="aesKey" />
+
+			<pgp id="rsaEncrypt" keyFileName="./pubring.asc" keyUserid="camel@bit.de" />
+			<pgp id="rsaDecrypt" keyFileName="./secring.asc" keyUserid="camel@bit.de"
+				password="hrSecret" />
+		</dataFormats>
+
+		<!-- call this web service with an signal ID value 10001  
+			or 10002 -->
+		<route id="sigInfoService">
+			<from uri="cxf:bean:SigInfoService" />
+			<log message="sigInfoEndpoint started with body ${body}" />
+			<!-- body always consists of a String employee ID only -->
+			<convertBodyTo type="String" />
+			<!-- sign -->
+			<to
+				uri="crypto:sign://keystore?keystore=#hrStore&amp;alias=hr&amp;password=hrSecret" />
+			<log
+				message="Signature for body ${body} is ${in.header.CamelDigitalSignature}" />
+			<log message="sigInfoEndpoint with encrypted body ${body}" />
+			<!-- encryption with RSA (PGP) -->
+			<marshal ref="rsaEncrypt" />
+
+			<log message="sigInfoEndpoint with encrypted body ${body}" />
+
+			<to uri="direct:hr" />
+			<choice>
+				<when>
+					<method bean="signalement" method="isSolved" />
+					<to uri="direct:sac" />
+	
+					<!-- asymmetric XML decryption -->
+					<unmarshal>
+						<secureXML
+							xmlCipherAlgorithm="http://www.w3.org/2001/04/xmlenc#aes128-cbc"
+							keyCipherAlgorithm="http://www.w3.org/2001/04/xmlenc#rsa-1_5"
+							recipientKeyAlias="sac"
+							keyOrTrustStoreParametersId="sacStore" />
+					</unmarshal>
+					
+					<log message="sac with decrypted body ${body}" />
+				</when>
+			</choice>
+
+		</route>
+
+		<route id="hr">
+			<from uri="direct:hr" />
+			<!-- decryption with RSA (PGP) -->
+			<unmarshal ref="rsaDecrypt" />
+			<to uri="crypto:verify://keystore?keystore=#hrStore&amp;alias=hr" />
+			<!-- header is removed after successful verification, therefore empty -->
+			<log
+				message="Signature for body ${body} after verification ${in.header.CamelDigitalSignature}" />
+			<log message="hr with decrypted body ${body}" />
+			<bean ref="signalement" method="getSignalementData" />
+			<log message="hr finished with body ${body}" />
+		</route>
+			<route id="sac">
+			<from uri="direct:sac" />
+
+			<bean ref="ordremission" method="getOrdreDeMissionData" />
+			<log message="sac finished with body ${body}" />
+			<!-- asymmetric XML encryption -->
+			<marshal>
+				<secureXML
+					xmlCipherAlgorithm="http://www.w3.org/2001/04/xmlenc#aes128-cbc"
+					keyCipherAlgorithm="http://www.w3.org/2001/04/xmlenc#rsa-1_5"
+					recipientKeyAlias="sac"
+					keyOrTrustStoreParametersId="sacStore" />
+			</marshal>
+			
+			<log message="sac with encrypted body ${body}" />
+		</route>
+	</camelContext>
+</beans>

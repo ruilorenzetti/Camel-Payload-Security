@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd">
+	<bean id="hrStore" class="de.bit.camel.security.crypto.KeystoreFactory">
+		<property name="password" value="hrStore" />
+		<property name="location" value="classpath:hrStore.jks" />
+	</bean>
+	
+	<bean id="aesKey" class="de.bit.camel.security.crypto.KeyFactory">
+		<property name="password" value="hrStore" />
+		<property name="location" value="classpath:hrStore.jks" />
+		<property name="keyAlias" value="hrSecretKey" />
+		<property name="keyPassword" value="hrSecret" />
+	</bean>
+	
+	<bean id="signalement" class="de.bit.camel.security.beans.SignalementBean">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<bean id="ordremission" class="de.bit.camel.security.beans.OrdreDeMissionBean">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+	
+	<jdbc:embedded-database id="dataSource">
+		<jdbc:script location="classpath:schema.sql" />
+		<jdbc:script location="classpath:data.sql" />
+	</jdbc:embedded-database>
+</beans>
